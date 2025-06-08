@@ -9,6 +9,24 @@ export default function App() {
   const [form, setForm] = useState({ startTime: '', endTime: '', note: '' })
   const [editingId, setEditingId] = useState(null)
 
+  const toLocalDatetimeInput = isoString => {
+    if (!isoString) return ''
+    const dt = new Date(isoString)
+    const year = dt.getFullYear()
+    const month = String(dt.getMonth() + 1).padStart(2, '0')
+    const day = String(dt.getDate()).padStart(2, '0')
+    const hour = String(dt.getHours()).padStart(2, '0')
+    const minute = String(dt.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hour}:${minute}`
+  }
+
+  const toISOStringWithoutSeconds = dtStr => {
+    if (!dtStr) return ''
+    const dt = new Date(dtStr)
+    dt.setSeconds(0, 0)
+    return dt.toISOString()
+  }
+
   const fetchRecords = async () => {
     const res = await fetch('http://localhost:3001/records')
     const data = await res.json()
@@ -23,13 +41,6 @@ export default function App() {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  const addSeconds = dtStr => {
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dtStr)) {
-      return dtStr + ':00'
-    }
-    return dtStr
-  }
-
   const onSubmit = async e => {
     e.preventDefault()
 
@@ -40,8 +51,8 @@ export default function App() {
 
     const payload = {
       ...form,
-      startTime: addSeconds(form.startTime),
-      endTime: addSeconds(form.endTime)
+      startTime: toISOStringWithoutSeconds(form.startTime),
+      endTime: toISOStringWithoutSeconds(form.endTime)
     }
 
     if (editingId) {
@@ -73,8 +84,8 @@ export default function App() {
   const onEdit = record => {
     setEditingId(record.id)
     setForm({
-      startTime: record.startTime.slice(0, 16),
-      endTime: record.endTime.slice(0, 16),
+      startTime: toLocalDatetimeInput(record.startTime),
+      endTime: toLocalDatetimeInput(record.endTime),
       note: record.note || ''
     })
   }
@@ -205,6 +216,7 @@ export default function App() {
     }
   }
 
+  // 일별 총 수면 시간 계산 함수
   const getChartData = () => {
     const dateMap = {}
 
@@ -232,52 +244,87 @@ export default function App() {
     }
   }
 
+  // 일별 평균 수면 시간 계산 함수 (기록 개수로 나눔)
+  const getAverageChartData = () => {
+    const dateMap = {}
+    const countMap = {}
+
+    records.forEach(({ startTime, endTime }) => {
+      const date = new Date(startTime).toLocaleDateString()
+      const start = new Date(startTime)
+      const end = new Date(endTime)
+      const hours = (end - start) / 3600000
+
+      dateMap[date] = (dateMap[date] || 0) + hours
+      countMap[date] = (countMap[date] || 0) + 1
+    })
+
+    const labels = Object.keys(dateMap).sort((a, b) => new Date(a) - new Date(b))
+    const data = labels.map(label => Number((dateMap[label] / countMap[label]).toFixed(2)))
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: '일별 평균 수면 시간(시간)',
+          data,
+          backgroundColor: 'rgba(246, 126, 33, 0.7)'
+        }
+      ]
+    }
+  }
+
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>💤 Deep Sleep</h1>
+      <h1 style={styles.title}>수면 시간 기록</h1>
 
       <form onSubmit={onSubmit} style={styles.form}>
         <div style={styles.formGroup}>
-          <label style={styles.label}>수면 시작 시간:</label>
+          <label htmlFor="startTime" style={styles.label}>
+            수면 시작 시간
+          </label>
           <input
             type="datetime-local"
+            id="startTime"
             name="startTime"
+            style={styles.input}
             value={form.startTime}
             onChange={onChange}
             required
-            style={styles.input}
-            onFocus={e => (e.target.style.borderColor = '#4a90e2')}
-            onBlur={e => (e.target.style.borderColor = '#ccc')}
           />
         </div>
         <div style={styles.formGroup}>
-          <label style={styles.label}>기상 시간:</label>
+          <label htmlFor="endTime" style={styles.label}>
+            기상 시간
+          </label>
           <input
             type="datetime-local"
+            id="endTime"
             name="endTime"
+            style={styles.input}
             value={form.endTime}
             onChange={onChange}
             required
-            style={styles.input}
-            onFocus={e => (e.target.style.borderColor = '#4a90e2')}
-            onBlur={e => (e.target.style.borderColor = '#ccc')}
           />
         </div>
         <div style={styles.formGroup}>
-          <label style={styles.label}>특이사항:</label>
+          <label htmlFor="note" style={styles.label}>
+            메모
+          </label>
           <input
             type="text"
+            id="note"
             name="note"
+            style={styles.input}
             value={form.note}
             onChange={onChange}
-            placeholder="예: 악몽, 코골이 등"
-            style={styles.input}
+            placeholder="간단한 메모"
           />
         </div>
 
         <div style={styles.buttonGroup}>
           <button type="submit" style={{ ...styles.button, ...styles.addButton }}>
-            {editingId ? '수정 완료' : '기록 추가'}
+            {editingId ? '수정하기' : '기록하기'}
           </button>
           {editingId && (
             <button
@@ -291,48 +338,42 @@ export default function App() {
         </div>
       </form>
 
-      {/* 통계 차트 영역 */}
-      <div style={{ marginBottom: 40 }}>
-        <h2 style={{ color: '#333', marginBottom: 20 }}>수면 통계</h2>
-        <Bar data={getChartData()} />
-      </div>
-
       <ul style={styles.list}>
-        {records.map(r => (
-          <li key={r.id} style={styles.listItem}>
+        {records.map(record => (
+          <li key={record.id} style={styles.listItem}>
             <div style={styles.recordRow}>
-              <strong>수면 시작:</strong> {new Date(r.startTime).toLocaleString()}
+              <strong>수면 시작:</strong> {new Date(record.startTime).toLocaleString()}
             </div>
             <div style={styles.recordRow}>
-              <strong>기상 시간:</strong> {new Date(r.endTime).toLocaleString()}
+              <strong>기상 시간:</strong> {new Date(record.endTime).toLocaleString()}
             </div>
             <div style={styles.recordRow}>
-              <strong>수면 시간:</strong> {calculateSleepDuration(r.startTime, r.endTime)}
+              <strong>수면 시간:</strong> {calculateSleepDuration(record.startTime, record.endTime)}
             </div>
             <div style={styles.recordRow}>
-              <strong>특이사항:</strong> {r.note || '-'}
+              <strong>메모:</strong> {record.note || '-'}
             </div>
             <div style={styles.buttonsRow}>
-              <button
-                onClick={() => onEdit(r)}
-                style={styles.editButton}
-                onMouseOver={e => (e.currentTarget.style.backgroundColor = '#ec971f')}
-                onMouseOut={e => (e.currentTarget.style.backgroundColor = '#f0ad4e')}
-              >
+              <button onClick={() => onEdit(record)} style={styles.editButton} type="button">
                 수정
               </button>
-              <button
-                onClick={() => onDelete(r.id)}
-                style={styles.deleteButton}
-                onMouseOver={e => (e.currentTarget.style.backgroundColor = '#c9302c')}
-                onMouseOut={e => (e.currentTarget.style.backgroundColor = '#d9534f')}
-              >
+              <button onClick={() => onDelete(record.id)} style={styles.deleteButton} type="button">
                 삭제
               </button>
             </div>
           </li>
         ))}
       </ul>
+
+      {records.length > 0 && (
+        <>
+          <h2 style={{ marginTop: 40, color: '#444' }}>일별 총 수면 시간</h2>
+          <Bar data={getChartData()} />
+
+          <h2 style={{ marginTop: 40, color: '#444' }}>일별 평균 수면 시간</h2>
+          <Bar data={getAverageChartData()} />
+        </>
+      )}
     </div>
   )
 }
