@@ -1,4 +1,8 @@
 import React, { useEffect, useState } from 'react'
+import { Bar } from 'react-chartjs-2'
+import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
+
+ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend)
 
 export default function App() {
   const [records, setRecords] = useState([])
@@ -15,18 +19,18 @@ export default function App() {
     fetchRecords()
   }, [])
 
-  const onChange = (e) => {
+  const onChange = e => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  const addSeconds = (dtStr) => {
+  const addSeconds = dtStr => {
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dtStr)) {
       return dtStr + ':00'
     }
     return dtStr
   }
 
-  const onSubmit = async (e) => {
+  const onSubmit = async e => {
     e.preventDefault()
 
     if (form.endTime <= form.startTime) {
@@ -37,7 +41,7 @@ export default function App() {
     const payload = {
       ...form,
       startTime: addSeconds(form.startTime),
-      endTime: addSeconds(form.endTime),
+      endTime: addSeconds(form.endTime)
     }
 
     if (editingId) {
@@ -59,14 +63,14 @@ export default function App() {
     fetchRecords()
   }
 
-  const onDelete = async (id) => {
+  const onDelete = async id => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       await fetch(`http://localhost:3001/records/${id}`, { method: 'DELETE' })
       fetchRecords()
     }
   }
 
-  const onEdit = (record) => {
+  const onEdit = record => {
     setEditingId(record.id)
     setForm({
       startTime: record.startTime.slice(0, 16),
@@ -98,40 +102,40 @@ export default function App() {
       fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
       backgroundColor: '#f9f9f9',
       borderRadius: 8,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
     },
     title: {
       textAlign: 'center',
       color: '#333',
       marginBottom: 30,
-      fontWeight: '700',
+      fontWeight: '700'
     },
     form: {
       marginBottom: 30,
       display: 'flex',
       flexDirection: 'column',
-      gap: 15,
+      gap: 15
     },
     formGroup: {
       display: 'flex',
-      flexDirection: 'column',
+      flexDirection: 'column'
     },
     label: {
       marginBottom: 6,
       fontWeight: '600',
-      color: '#555',
+      color: '#555'
     },
     input: {
       padding: '8px 12px',
       borderRadius: 4,
       border: '1.5px solid #ccc',
       fontSize: 14,
-      transition: 'border-color 0.2s',
+      transition: 'border-color 0.2s'
     },
     buttonGroup: {
       display: 'flex',
       gap: 10,
-      marginTop: 10,
+      marginTop: 10
     },
     button: {
       padding: '10px 18px',
@@ -141,15 +145,15 @@ export default function App() {
       fontWeight: '600',
       fontSize: 15,
       transition: 'background-color 0.3s',
-      flex: 1,
+      flex: 1
     },
     addButton: {
       backgroundColor: '#4a90e2',
-      color: 'white',
+      color: 'white'
     },
     cancelButton: {
       backgroundColor: '#aaa',
-      color: 'white',
+      color: 'white'
     },
     list: {
       listStyle: 'none',
@@ -157,7 +161,7 @@ export default function App() {
       margin: 0,
       display: 'flex',
       flexDirection: 'column',
-      gap: 15,
+      gap: 15
     },
     listItem: {
       backgroundColor: 'white',
@@ -165,17 +169,17 @@ export default function App() {
       borderRadius: 8,
       boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
       display: 'flex',
-      flexDirection: 'column',
+      flexDirection: 'column'
     },
     recordRow: {
       marginBottom: 6,
       color: '#444',
-      fontSize: 14,
+      fontSize: 14
     },
     buttonsRow: {
       marginTop: 10,
       display: 'flex',
-      gap: 10,
+      gap: 10
     },
     editButton: {
       backgroundColor: '#f0ad4e',
@@ -186,7 +190,7 @@ export default function App() {
       color: 'white',
       fontWeight: '600',
       transition: 'background-color 0.3s',
-      flex: 1,
+      flex: 1
     },
     deleteButton: {
       backgroundColor: '#d9534f',
@@ -197,7 +201,34 @@ export default function App() {
       color: 'white',
       fontWeight: '600',
       flex: 1,
-      transition: 'background-color 0.3s',
+      transition: 'background-color 0.3s'
+    }
+  }
+
+  const getChartData = () => {
+    const dateMap = {}
+
+    records.forEach(({ startTime, endTime }) => {
+      const date = new Date(startTime).toLocaleDateString()
+      const start = new Date(startTime)
+      const end = new Date(endTime)
+      const hours = (end - start) / 3600000
+
+      dateMap[date] = (dateMap[date] || 0) + hours
+    })
+
+    const labels = Object.keys(dateMap).sort((a, b) => new Date(a) - new Date(b))
+    const data = labels.map(label => Number(dateMap[label].toFixed(2)))
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: '일별 총 수면 시간(시간)',
+          data,
+          backgroundColor: 'rgba(74, 144, 226, 0.7)'
+        }
+      ]
     }
   }
 
@@ -215,8 +246,8 @@ export default function App() {
             onChange={onChange}
             required
             style={styles.input}
-            onFocus={e => e.target.style.borderColor = '#4a90e2'}
-            onBlur={e => e.target.style.borderColor = '#ccc'}
+            onFocus={e => (e.target.style.borderColor = '#4a90e2')}
+            onBlur={e => (e.target.style.borderColor = '#ccc')}
           />
         </div>
         <div style={styles.formGroup}>
@@ -228,8 +259,8 @@ export default function App() {
             onChange={onChange}
             required
             style={styles.input}
-            onFocus={e => e.target.style.borderColor = '#4a90e2'}
-            onBlur={e => e.target.style.borderColor = '#ccc'}
+            onFocus={e => (e.target.style.borderColor = '#4a90e2')}
+            onBlur={e => (e.target.style.borderColor = '#ccc')}
           />
         </div>
         <div style={styles.formGroup}>
@@ -259,6 +290,12 @@ export default function App() {
           )}
         </div>
       </form>
+
+      {/* 통계 차트 영역 */}
+      <div style={{ marginBottom: 40 }}>
+        <h2 style={{ color: '#333', marginBottom: 20 }}>수면 통계</h2>
+        <Bar data={getChartData()} />
+      </div>
 
       <ul style={styles.list}>
         {records.map(r => (
