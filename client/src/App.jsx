@@ -276,7 +276,7 @@ export default function App() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>수면 시간 기록</h1>
+      <h1 style={styles.title}>💤 Deep Sleep</h1>
 
       <form onSubmit={onSubmit} style={styles.form}>
         <div style={styles.formGroup}>
@@ -309,7 +309,7 @@ export default function App() {
         </div>
         <div style={styles.formGroup}>
           <label htmlFor="note" style={styles.label}>
-            메모
+            특이사항
           </label>
           <input
             type="text"
@@ -318,7 +318,7 @@ export default function App() {
             style={styles.input}
             value={form.note}
             onChange={onChange}
-            placeholder="간단한 메모"
+            placeholder="예: 악몽, 코골이 등"
           />
         </div>
 
@@ -351,7 +351,7 @@ export default function App() {
               <strong>수면 시간:</strong> {calculateSleepDuration(record.startTime, record.endTime)}
             </div>
             <div style={styles.recordRow}>
-              <strong>메모:</strong> {record.note || '-'}
+              <strong>특이사항:</strong> {record.note || '-'}
             </div>
             <div style={styles.buttonsRow}>
               <button onClick={() => onEdit(record)} style={styles.editButton} type="button">
